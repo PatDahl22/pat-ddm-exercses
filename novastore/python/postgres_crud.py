@@ -1,5 +1,5 @@
 """
-NovaStore – PostgreSQL CRUD (Del 3 & Del 6)
+NovaStore - PostgreSQL CRUD (Del 3 & Del 6)
 Kör: python postgres_crud.py
 Kräver: pip install psycopg2-binary
 """
@@ -45,7 +45,7 @@ def create_examples():
 def read_customers():
     cursor.execute("SELECT * FROM customers")
     rows = cursor.fetchall()
-    print("\nREAD – Kunder:")
+    print("\nREAD - Kunder:")
     for row in rows:
         print(f"  id={row['id']}  namn={row['name']}  email={row['email']}")
 
@@ -65,13 +65,13 @@ def read_orders_with_join():
         ORDER BY orders.id
     """)
     rows = cursor.fetchall()
-    print("\nREAD – Orders (JOIN med customers):")
+    print("\nREAD - Orders (JOIN med customers):")
     for row in rows:
         print(f"  order={row['order_id']}  kund={row['kund']}  status={row['status']}")
 
 
 # ------------------------------------------------------------------
-# UPDATE – ändra orderstatus
+# UPDATE - ändra orderstatus
 # ------------------------------------------------------------------
 def update_order_status(order_id: int, new_status: str):
     cursor.execute(
@@ -83,7 +83,7 @@ def update_order_status(order_id: int, new_status: str):
 
 
 # ------------------------------------------------------------------
-# DELETE – ta bort en produkt (med säkerhetskontroll)
+# DELETE - ta bort en produkt (med säkerhetskontroll)
 # ------------------------------------------------------------------
 def delete_product(product_id: int):
     cursor.execute("DELETE FROM products WHERE id = %s", (product_id,))

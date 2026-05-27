@@ -1,12 +1,11 @@
 """
-NovaStore – MongoDB CRUD (Del 4 & Del 6)
+NovaStore - MongoDB CRUD (Del 4 & Del 6)
 Kör: python mongo_crud.py
 Kräver: pip install pymongo
 """
 
 from pymongo import MongoClient, ASCENDING
-from pymongo.errors import DuplicateKeyError
-from datetime import datetime
+from datetime import datetime, timezone
 
 # ------------------------------------------------------------------
 # Anslutning
@@ -41,7 +40,7 @@ def create_orders():
                 {"product_id": "product_2", "name": "Hörlurar", "price":   899, "quantity": 2},
             ],
             "status": "created",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         },
         {
             "order_id": "order_2",
@@ -54,7 +53,7 @@ def create_orders():
                 {"product_id": "product_3", "name": "Skrivbord", "price": 3499, "quantity": 1},
             ],
             "status": "shipped",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         },
     ]
     # insert_many ignorerar om dokumenten redan finns (idempotent via order_id)
@@ -71,7 +70,7 @@ def create_orders():
 # READ – hämta alla orders
 # ------------------------------------------------------------------
 def read_orders():
-    print("\nREAD – Orders:")
+    print("\nREAD - Orders:")
     for order in db.orders.find({}, {"_id": 0}):
         print(f"  order_id={order['order_id']}  kund={order['customer']['name']}  status={order['status']}")
 
@@ -93,7 +92,7 @@ def update_order_status(order_id: str, new_status: str):
 def soft_delete_order(order_id: str):
     db.orders.update_one(
         {"order_id": order_id},
-        {"$set": {"deleted": True, "deleted_at": datetime.utcnow()}}
+        {"$set": {"deleted": True, "deleted_at": datetime.now(timezone.utc)}}
     )
     print(f"\nSOFT DELETE: {order_id} markerad som deleted.")
 
@@ -110,7 +109,7 @@ def hard_delete_order(order_id: str):
 # Visa dubbletter-problemet (Del 5 B) – försök sätta in samma email
 # ------------------------------------------------------------------
 def demo_duplicate_block():
-    print("\nDEMO – dubblettskydd:")
+    print("\nDEMO - dubblettskydd:")
     try:
         db.customers.insert_many([
             {"name": "Sara",        "email": "sara@example.com"},
