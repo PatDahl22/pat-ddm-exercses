@@ -10,50 +10,26 @@ with open(file_path, "w", newline="") as file:
     writer = csv.DictWriter(file, fieldnames=["timestamp", "user", "amount"])
     writer.writeheader()
 
-print("Generator started", flush=True)
+print("Generator started (FAST MODE - backpressure simulation)", flush=True)
+
+counter = 0
 
 while True:
-    # Inject a broken event roughly 1 in 5 times
-    if random.random() < 0.2:
-        broken_type = random.choice(["null_user", "invalid_amount", "missing_field"])
+    payment = {
+        "timestamp": datetime.now().isoformat(),
+        "user": random.choice(users),
+        "amount": random.randint(10, 5000),
+    }
 
-        if broken_type == "null_user":
-            payment = {
-                "timestamp": datetime.now().isoformat(),
-                "user": "",
-                "amount": random.randint(10, 5000),
-            }
-        elif broken_type == "invalid_amount":
-            payment = {
-                "timestamp": datetime.now().isoformat(),
-                "user": random.choice(users),
-                "amount": "INVALID",
-            }
-        else:
-            # Missing field — write raw broken line directly
-            with open(file_path, "a") as f:
-                f.write(f"{datetime.now().isoformat()},\n")
-            print("Generated broken event: missing field", flush=True)
-            time.sleep(1)
-            continue
+    with open(file_path, "a", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=["timestamp", "user", "amount"])
+        writer.writerow(payment)
 
-        with open(file_path, "a", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=["timestamp", "user", "amount"])
-            writer.writerow(payment)
+    counter += 1
 
-        print(f"Generated broken event: {broken_type} → {payment}", flush=True)
+    # Print every 100 events so the terminal doesn't flood completely
+    if counter % 100 == 0:
+        print(f"Generated {counter} events so far...", flush=True)
 
-    else:
-        payment = {
-            "timestamp": datetime.now().isoformat(),
-            "user": random.choice(users),
-            "amount": random.randint(10, 5000),
-        }
-
-        with open(file_path, "a", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=["timestamp", "user", "amount"])
-            writer.writerow(payment)
-
-        print("Generated:", payment, flush=True)
-
-    time.sleep(1)
+    # 0.01 seconds = 100 events per second (vs 1 event per second before)
+    time.sleep(0.01)
