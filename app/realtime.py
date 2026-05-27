@@ -4,6 +4,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timedelta
 
 file_path = "/data/payments.csv"
+error_log_path = "/data/errors.log"
 last_position = 0
 
 # Tracks recent payment timestamps per user (for frequency detection)
@@ -17,6 +18,38 @@ print("Realtime monitor started", flush=True)
 while not os.path.exists(file_path):
     time.sleep(1)
 
+
+def log_error(reason, raw_line):
+    """Write invalid events to error log with timestamp and reason."""
+    with open(error_log_path, "a") as log:
+        log.write(f"[{datetime.now().isoformat()}] ERROR: {reason} | raw: {raw_line.strip()}\n")
+    print(f"❌ REJECTED: {reason} | {raw_line.strip()}", flush=True)
+
+
+def validate_event(timestamp, user, amount_str):
+    """Validate event fields. Returns (is_valid, reason)."""
+    if not timestamp or not timestamp.strip():
+        return False, "Missing timestamp"
+
+    try:
+        datetime.fromisoformat(timestamp.strip())
+    except ValueError:
+        return False, f"Invalid timestamp format: {timestamp}"
+
+    if not user or not user.strip():
+        return False, "Missing or null user"
+
+    try:
+        amount = int(amount_str.strip())
+    except ValueError:
+        return False, f"Invalid amount (not a number): {amount_str}"
+
+    if amount <= 0:
+        return False, f"Invalid amount (must be positive): {amount}"
+
+    return True, None
+
+
 while True:
     with open(file_path, "r") as file:
         file.seek(last_position)
@@ -27,9 +60,27 @@ while True:
         if line.startswith("timestamp") or not line.strip():
             continue
 
-        timestamp, user, amount = line.strip().split(",")
-        amount = int(amount)
-        now = datetime.fromisoformat(timestamp)
+        # ---------------------------------------------------
+        # SCHEMA VALIDATION: Check correct number of fields
+        # ---------------------------------------------------
+        parts = line.strip().split(",")
+        if len(parts) != 3:
+            log_error("Wrong number of fields", line)
+            continue
+
+        timestamp, user, amount_str = parts
+
+        # ---------------------------------------------------
+        # FIELD VALIDATION
+        # ---------------------------------------------------
+        is_valid, reason = validate_event(timestamp, user, amount_str)
+        if not is_valid:
+            log_error(reason, line)
+            continue
+
+        # All checks passed — process the event
+        amount = int(amount_str.strip())
+        now = datetime.fromisoformat(timestamp.strip())
 
         print(f"Realtime received: {user} {amount}", flush=True)
 
@@ -42,11 +93,9 @@ while True:
         # ---------------------------------------------------
         # FRAUD CHECK 2: Många betalningar inom 10 sekunder
         # ---------------------------------------------------
-        # Ta bort gamla timestamps utanför 10-sekunders fönstret
         while recent_payments[user] and recent_payments[user][0] < now - timedelta(seconds=10):
             recent_payments[user].popleft()
 
-        # Lägg till nuvarande timestamp 
         recent_payments[user].append(now)
 
         if len(recent_payments[user]) >= 3:
@@ -57,11 +106,9 @@ while True:
         # ---------------------------------------------------
         last_amounts[user].append(amount)
 
-        # Behåll bara de 3 senaste beloppen per användare
         if len(last_amounts[user]) > 3:
             last_amounts[user].pop(0)
 
-        # Om de 3 senaste beloppen är identiska → misstänkt
         if len(last_amounts[user]) == 3 and len(set(last_amounts[user])) == 1:
             print(f"🚨 ALERT: Repeated amount detected! {user} sent {amount} three times in a row", flush=True)
 
